@@ -55,7 +55,7 @@
       <q-card-actions align="evenly">
         <q-btn flat label="Cancel" color="grey" v-close-popup />
         <q-separator inset vertical />
-        <q-btn flat label="Confirm" color="primary" v-close-popup />
+        <q-btn flat label="Confirm" color="primary" @click=""  v-close-popup />
       </q-card-actions>
     </q-card>
   </q-dialog> 
@@ -64,7 +64,7 @@
 
 <script lang="ts">
 import { computed, defineComponent, ref } from '@vue/composition-api';
-import { UnipassAccount, UnipassMessage } from 'src/compositions/account';
+import { UniAccount, UnipassAccount, UnipassMessage } from 'src/compositions/account';
 import VerificationInput from 'vue-verification-code-input';
 export default defineComponent({
   name: 'Login',
@@ -114,10 +114,15 @@ export default defineComponent({
     register: function() {
       // TODO: checks
 
-      this.showOTP = true;
-      this.otpSend();
+      // this.showOTP = true;
+      // this.otpSend();
+      new UniAccount(this.email).register();
+
     },
     login: function() {
+
+      new UniAccount(this.email).login();
+
       const info: UnipassAccount = {address: 'ckb123', email: 'zhixian@yamen.co'};
       const msg: UnipassMessage = {
         upact: 'UP-LOGIN',

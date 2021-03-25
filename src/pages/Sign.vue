@@ -28,6 +28,7 @@
 import { defineComponent, ref } from '@vue/composition-api'
 import { UniAccount, UnipassMessage, useAccount } from 'src/compositions/account'
 import SignMessage from 'src/components/SignMessage.vue'
+import { createHash } from 'crypto';
 
 export default defineComponent({
   name: 'Sign',
@@ -45,8 +46,14 @@ export default defineComponent({
     exit() {
       (window.opener as Window).postMessage('UP-CLOSE', '*');
     },
-    sign() {
+    async sign() {
       // TODO: proceed webauthn signature
+
+      const message = createHash('SHA256').update('hello world').digest();
+      console.log('message', message);
+      const sig = await this.account?.sign(message);
+
+      console.log('sig');
 
       (window.opener as Window).postMessage('UP-SIG|signature', this.RP);
     },
