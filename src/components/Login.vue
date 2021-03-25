@@ -55,7 +55,7 @@
       <q-card-actions align="evenly">
         <q-btn flat label="Cancel" color="grey" v-close-popup />
         <q-separator inset vertical />
-        <q-btn flat label="Confirm" color="primary" @click=""  v-close-popup />
+        <q-btn flat label="Confirm" color="primary" v-close-popup />
       </q-card-actions>
     </q-card>
   </q-dialog> 
@@ -64,7 +64,7 @@
 
 <script lang="ts">
 import { computed, defineComponent, ref } from '@vue/composition-api';
-import { UniAccount, UnipassAccount, UnipassMessage } from 'src/compositions/account';
+import { UniAccount, UnipassAccount, UnipassMessage, useAccount } from 'src/compositions/account';
 import VerificationInput from 'vue-verification-code-input';
 export default defineComponent({
   name: 'Login',
@@ -79,7 +79,9 @@ export default defineComponent({
     const resendCounter = ref();
     const resendAfter = ref(0);
     const opener = ref('');
+    const account = useAccount();
     return {
+      account,
       mode,
       sps,
       sp,
@@ -111,24 +113,29 @@ export default defineComponent({
     otpComplete: function(val: number) {
       console.log(`[otp complete]: ${val}`);
     },
-    register: function() {
+    register: async function() {
       // TODO: checks
 
       // this.showOTP = true;
       // this.otpSend();
-      new UniAccount(this.email).register();
-
+      this.account = await new UniAccount(this.email).register();
     },
-    login: function() {
+    login: async function() {
+      console.log('[login]');
+      this.account = await new UniAccount(this.email).login();
+      let info: UnipassAccount | undefined = undefined;
+      if(this.account) {
+        info = { address: this.account.ckbAddress, email: this.account.email};
+      }
 
-      new UniAccount(this.email).login();
-
-      const info: UnipassAccount = {address: 'ckb123', email: 'zhixian@yamen.co'};
       const msg: UnipassMessage = {
         upact: 'UP-LOGIN',
         payload: info
       };
       window.opener && (window.opener as Window).postMessage(msg, this.opener);
+    },
+    logout: function() {
+      this.account && this.account.logout();
     },
     messageListener(event: MessageEvent) {
       if((event.data as UnipassMessage).upact === 'UP-LOGIN'){

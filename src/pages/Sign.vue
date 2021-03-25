@@ -35,7 +35,6 @@ export default defineComponent({
   components: { SignMessage },
   setup() {
     const account = useAccount();
-    account.value = new UniAccount('zhixian@yamen.co');
     return {
       account,
       RP: ref('unknown'),
@@ -47,15 +46,15 @@ export default defineComponent({
       (window.opener as Window).postMessage('UP-CLOSE', '*');
     },
     async sign() {
-      // TODO: proceed webauthn signature
-
-      const message = createHash('SHA256').update('hello world').digest();
-      console.log('message', message);
-      const sig = await this.account?.sign(message);
-
-      console.log('sig');
-
-      (window.opener as Window).postMessage('UP-SIG|signature', this.RP);
+      if(this.account && this.account.isLogin()) {
+        const msgBuffer = createHash('SHA256').update(this.message).digest();
+        console.log('message', msgBuffer);
+        const sig = await this.account.sign(msgBuffer);
+        console.log('sig', sig);
+        (window.opener as Window).postMessage({upact: 'UP-SIGN', signature: sig} as UnipassMessage, this.RP);
+      } else {
+        // TODO: Login Hint
+      }
     },
     messageListener(event: MessageEvent) {
       if('upact' in event.data) {
@@ -68,11 +67,9 @@ export default defineComponent({
     }
   },
   mounted() {
-    this.RP = 'test.com';
-    this.message = 'test'
     // eslint-disable-next-line @typescript-eslint/unbound-method
     window.addEventListener('message', this.messageListener, false);
-    window.opener && (window.opener as Window).postMessage('UP-SIGNER-READY', '*');
+    window.opener && (window.opener as Window).postMessage({upact: 'UP-READY'} as UnipassMessage, '*');
   },
   destroyed() {
     // eslint-disable-next-line @typescript-eslint/unbound-method

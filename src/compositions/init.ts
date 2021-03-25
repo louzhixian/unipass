@@ -1,7 +1,3 @@
-const getFP = (): string => {
-  return 'fingerprint';
-};
-
 export const checkLoginStatus = () => {
   // check local storage
 };
