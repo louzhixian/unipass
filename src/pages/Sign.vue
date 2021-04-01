@@ -8,7 +8,6 @@
         </q-avatar>
         <div class="ellipsis">
           {{ account && account.email }}
-          <q-tooltip>{{ account && account.ckbAddress }}</q-tooltip>
         </div>
       </q-chip>
     </q-toolbar>
@@ -26,7 +25,7 @@
 
 <script lang="ts">
 import { defineComponent, ref } from '@vue/composition-api'
-import { UniAccount, UnipassMessage, useAccount } from 'src/compositions/account'
+import { isLogin, UnipassMessage, useAccount } from 'src/compositions/account'
 import SignMessage from 'src/components/SignMessage.vue'
 import { createHash } from 'crypto';
 
@@ -46,12 +45,12 @@ export default defineComponent({
       (window.opener as Window).postMessage('UP-CLOSE', '*');
     },
     async sign() {
-      if(this.account && this.account.isLogin()) {
+      if(this.account) {
         const msgBuffer = createHash('SHA256').update(this.message).digest();
         console.log('message', msgBuffer);
         const sig = await this.account.sign(msgBuffer);
         console.log('sig', sig);
-        (window.opener as Window).postMessage({upact: 'UP-SIGN', signature: sig} as UnipassMessage, this.RP);
+        (window.opener as Window).postMessage({upact: 'UP-SIGN', payload: sig} as UnipassMessage, this.RP);
       } else {
         // TODO: Login Hint
       }
@@ -67,6 +66,8 @@ export default defineComponent({
     }
   },
   mounted() {
+    this.account = isLogin();
+    if(!this.account) console.warn('[Sign] need login');
     // eslint-disable-next-line @typescript-eslint/unbound-method
     window.addEventListener('message', this.messageListener, false);
     window.opener && (window.opener as Window).postMessage({upact: 'UP-READY'} as UnipassMessage, '*');

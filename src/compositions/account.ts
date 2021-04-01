@@ -5,14 +5,18 @@ import * as base64url from './base64url-arraybuffer.js';
 // import FP from '@fingerprintjs/fingerprintjs';
 
 interface Session {
-  account: UniAccount;
+  email: string;
+  pubkey: string;
+  kid: string;
   expire: number;
 }
+
+const LOCAL_KEY = 'UP-ACCOUNT';
 
 export type UP_ACT = 'UP-READY' | 'UP-LOGIN' | 'UP-SIGN' | 'UP-CLOSE';
 
 export interface UnipassAccount {
-  address: string;
+  pubkey: string;
   email: string;
 }
 
@@ -48,10 +52,103 @@ export const useAccount = (): Ref<UniAccount | undefined> => {
 
 const URL_BASE = 'https://testapi.unipass.me';
 
+export async function register(email: string) {
+  // fetch challenge from server
+  let response = await getMakeCredentialsChallenge(email);
+  const cred = utils.preformatMakeCredReq(
+    response.challenge
+  ) as PublicKeyCredentialCreationOptions;
+  localStorage.setItem('token', response.token);
+
+  // create credentials
+  const response1 = await navigator.credentials.create({
+    publicKey: cred
+  });
+  const makeCredResponse = utils.publicKeyCredentialToJSON(
+    response1
+  ) as unknown;
+  console.log('register signed result', makeCredResponse);
+
+  // send credential to server for verification
+  response = await sendWebAuthnResponse(makeCredResponse);
+
+  const kid = response.authenticator.credID;
+  const pubkey = utils.convertPubkeyToHex(response.authenticator.publicKey);
+
+  const account = new UniAccount(email, kid, pubkey);
+
+  saveSession(account);
+
+  return account;
+}
+
+export function isLogin(_email?: string): UniAccount | undefined {
+  // check localstorage for session info
+  const session = LocalStorage.getItem(LOCAL_KEY) as Session;
+  if (!!session) {
+    if (!session.expire || session.expire > new Date().getTime()) {
+      const { email, kid, pubkey } = session;
+      if (!_email || email === email) return new UniAccount(email, kid, pubkey);
+    }
+    logout();
+  }
+}
+
+export async function login(email: string) {
+  let account = isLogin(email);
+  if (account) return account;
+
+  // get challenge from server
+  let response = await getGetAssertionChallenge(email);
+  const publicKey = utils.preformatGetAssertReq(
+    response.challenge
+  ) as PublicKeyCredentialRequestOptions;
+
+  // get assertion from authenticator
+  const response2 = await navigator.credentials.get({ publicKey });
+  console.log('login response', response2);
+  const getAssertionResponse = utils.publicKeyCredentialToJSON(
+    response2
+  ) as unknown;
+
+  // send assertion to server for verfication
+  response = await sendWebAuthnResponse(getAssertionResponse);
+  const kid = response.authenticator.credID;
+  const pubkey = utils.convertPubkeyToHex(response.authenticator.publicKey);
+  console.log('this.pubKey', pubkey);
+  account = new UniAccount(email, kid, pubkey);
+
+  saveSession(account);
+
+  return account;
+}
+
+export function logout() {
+  LocalStorage.remove(LOCAL_KEY);
+  return;
+}
+
+function saveSession(account: UniAccount) {
+  const email = account.email;
+  const pubkey = account.pubkey || 'N/A';
+  const kid = account.kid || 'N/A';
+  const session: Session = {
+    email,
+    pubkey,
+    kid,
+    expire: 0
+  };
+  console.log('[Saving Sesion]', session);
+  LocalStorage.set(LOCAL_KEY, session);
+}
 export class UniAccount {
-  private _kid: string | undefined;
-  private _pubkey: string | undefined;
-  constructor(private _email: string) {}
+  // private _kid: string | undefined;
+  // private _pubkey: string | undefined;
+  constructor(
+    private _email: string,
+    private _kid?: string,
+    private _pubkey?: string
+  ) {}
 
   get email() {
     return this._email;
@@ -63,95 +160,6 @@ export class UniAccount {
 
   get pubkey() {
     return this._pubkey;
-  }
-
-  async register() {
-    // fetch challenge from server
-    let response = await getMakeCredentialsChallenge(this._email);
-    const cred = utils.preformatMakeCredReq(
-      response.challenge
-    ) as PublicKeyCredentialCreationOptions;
-    localStorage.setItem('token', response.token);
-
-    // create credentials
-    const response1 = await navigator.credentials.create({ publicKey: cred });
-    const makeCredResponse = utils.publicKeyCredentialToJSON(
-      response1
-    ) as unknown;
-    console.log('register signed result', makeCredResponse);
-
-    // send credential to server for verification
-    response = await sendWebAuthnResponse(makeCredResponse);
-
-    this._kid = response.authenticator.credID;
-    this._pubkey = utils.convertPubkeyToHex(response.authenticator.publicKey);
-
-    this.saveSession();
-
-    return this;
-  }
-
-  // login for user & store session in localstorage
-  get ckbAddress() {
-    return 'get ckb address from pubkey';
-  }
-
-  isLogin(): boolean {
-    // check localstorage for session info
-    const session = LocalStorage.getItem(this.email) as Session;
-    console.log('[isLogin]', session);
-    if (!!session) {
-      if (!session.expire || session.expire > new Date().getTime()) {
-        return true;
-      } else {
-        console.log('session expired');
-        this.logout();
-      }
-    }
-
-    return false;
-  }
-
-  async login() {
-    console.log('[login]');
-    if (this.isLogin()) return;
-
-    // get challenge from server
-    let response = await getGetAssertionChallenge(this.email);
-    const publicKey = utils.preformatGetAssertReq(
-      response.challenge
-    ) as PublicKeyCredentialRequestOptions;
-
-    // get assertion from authenticator
-    const response2 = await navigator.credentials.get({ publicKey });
-    console.log('login response', response2);
-    const getAssertionResponse = utils.publicKeyCredentialToJSON(
-      response2
-    ) as unknown;
-
-    // send assertion to server for verfication
-    response = await sendWebAuthnResponse(getAssertionResponse);
-    this._kid = response.authenticator.credID;
-    this._pubkey = utils.convertPubkeyToHex(response.authenticator.publicKey);
-    console.log('this.pubKey', this.pubkey);
-
-    this.saveSession();
-
-    return this;
-  }
-
-  saveSession() {
-    const session: Session = {
-      account: this,
-      expire: 0
-    };
-    console.log('[Saving Sesion]', session);
-    LocalStorage.set(this.email, session);
-  }
-
-  logout() {
-    LocalStorage.remove(this.email);
-    return;
   }
 
   async sign(message: Buffer): Promise<string> {

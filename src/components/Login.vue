@@ -64,7 +64,7 @@
 
 <script lang="ts">
 import { computed, defineComponent, ref } from '@vue/composition-api';
-import { UniAccount, UnipassAccount, UnipassMessage, useAccount } from 'src/compositions/account';
+import { login, logout, register, UnipassAccount, UnipassMessage, useAccount } from 'src/compositions/account';
 import VerificationInput from 'vue-verification-code-input';
 export default defineComponent({
   name: 'Login',
@@ -118,24 +118,26 @@ export default defineComponent({
 
       // this.showOTP = true;
       // this.otpSend();
-      this.account = await new UniAccount(this.email).register();
+      this.account = await register(this.email);
     },
+
     login: async function() {
-      console.log('[login]');
-      this.account = await new UniAccount(this.email).login();
+      this.account = await login(this.email);
       let info: UnipassAccount | undefined = undefined;
-      if(this.account) {
-        info = { address: this.account.ckbAddress, email: this.account.email};
+
+      if(this.account && this.account.pubkey) {
+        info = { pubkey: this.account.pubkey, email: this.account.email };
       }
 
       const msg: UnipassMessage = {
         upact: 'UP-LOGIN',
         payload: info
       };
+      console.log('[Login.vue] msg', msg);
       window.opener && (window.opener as Window).postMessage(msg, this.opener);
     },
     logout: function() {
-      this.account && this.account.logout();
+      logout();
     },
     messageListener(event: MessageEvent) {
       if((event.data as UnipassMessage).upact === 'UP-LOGIN'){
