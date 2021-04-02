@@ -88,13 +88,15 @@ export function isLogin(_email?: string): UniAccount | undefined {
   if (!!session) {
     if (!session.expire || session.expire > new Date().getTime()) {
       const { email, kid, pubkey } = session;
-      if (!_email || email === email) return new UniAccount(email, kid, pubkey);
+      if (!_email || _email === email)
+        return new UniAccount(email, kid, pubkey);
     }
     logout();
   }
 }
 
 export async function login(email: string) {
+  if (!validateEmail(email)) throw new Error('Invalid Email');
   let account = isLogin(email);
   if (account) return account;
 
@@ -136,7 +138,7 @@ function saveSession(account: UniAccount) {
     email,
     pubkey,
     kid,
-    expire: 0
+    expire: new Date().getTime() + 1 * 300 * 1000
   };
   console.log('[Saving Sesion]', session);
   LocalStorage.set(LOCAL_KEY, session);
@@ -250,11 +252,7 @@ const getMakeCredentialsChallenge = async (email: string) => {
   });
   const response_1 = (await response.json()) as SuccessResponse | FailResponse;
   if (response_1.status !== 'ok')
-    throw new Error(
-      `Server responed with error. The message is: ${
-        (response_1 as FailResponse).message
-      }`
-    );
+    throw new Error((response_1 as FailResponse).message);
   return response_1 as SuccessResponse;
 };
 
@@ -268,11 +266,7 @@ const getGetAssertionChallenge = async (email: string) => {
   });
   const response_1 = (await response.json()) as SuccessResponse | FailResponse;
   if (response_1.status !== 'ok')
-    throw new Error(
-      `Server responed with error. The message is: ${
-        (response_1 as FailResponse).message
-      }`
-    );
+    throw new Error((response_1 as FailResponse).message);
   localStorage.setItem('token', (response_1 as SuccessResponse).token);
   return response_1 as SuccessResponse;
 };
@@ -288,10 +282,11 @@ const sendWebAuthnResponse = async (body: unknown) => {
   });
   const response_1 = (await response.json()) as SuccessResponse | FailResponse;
   if (response_1.status !== 'ok')
-    throw new Error(
-      `Server responed with error. The message is: ${
-        (response_1 as FailResponse).message
-      }`
-    );
+    throw new Error((response_1 as FailResponse).message);
   return response_1 as SuccessResponse;
+};
+
+const validateEmail = (email: string) => {
+  const re = /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+  return re.test(String(email).toLowerCase());
 };

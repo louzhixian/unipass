@@ -32,12 +32,12 @@
       />
     </div>
     <div class="row q-mt-lg">
-      <q-btn v-if="mode==='login'" class="full-width" color="primary" no-caps @click="login"> Login </q-btn>
-      <q-btn v-else class="full-width" color="primary" no-caps @click="register"> Sign up </q-btn>
+      <q-btn v-if="mode==='login'" :loading="loading" class="full-width" color="primary" no-caps @click="login"> Login </q-btn>
+      <q-btn v-else class="full-width" :loading="loading" color="primary" no-caps @click="register"> Sign up </q-btn>
     </div>
     <div class="q-mt-sm text-center">
       <span v-if="mode === 'login'" class="text-grey-8"> Haven't got an account? <a href="#" @click="mode = 'reg'"> Sign up </a></span>
-      <span v-else class="text-grey-8"> Already got an account? <a href="#" @click="mode = 'login'"> Sign in </a></span>
+      <span v-else class="text-grey-8"> Already got an account? <a href="#" @click="mode = 'login'"> Login </a></span>
     </div>
   <q-dialog v-model="showOTP" persistent>
    <q-card>
@@ -80,7 +80,9 @@ export default defineComponent({
     const resendAfter = ref(0);
     const opener = ref('');
     const account = useAccount();
+    const loading = ref(false);
     return {
+      loading,
       account,
       mode,
       sps,
@@ -118,11 +120,33 @@ export default defineComponent({
 
       // this.showOTP = true;
       // this.otpSend();
-      this.account = await register(this.email);
+      this.loading = true;
+      try {
+        this.account = await register(this.email);
+        await this.login();
+      } catch(e) {
+        this.$q.notify({
+          type: 'warning',
+          position: 'top',
+          message: (e as Error).message
+        })
+      }
+      this.loading = false;
     },
 
     login: async function() {
-      this.account = await login(this.email);
+      this.loading = true;
+      try {
+        this.account = await login(this.email);
+      } catch (e) {
+        this.$q.notify({
+          type: 'warning',
+          position: 'top',
+          message: (e as Error).message
+        })
+      }
+      this.loading = false;
+
       let info: UnipassAccount | undefined = undefined;
 
       if(this.account && this.account.pubkey) {
