@@ -3,7 +3,7 @@
     <q-card flat bordered class="q-pa-md">
       <p class="text-subtitle2 text-grey text-center">Message to sign:</p>
       <q-card-section class="bg-blue-grey-1">
-        <div class="text-subtitle">{{ message }}</div>
+        <div class="text-subtitle" style="word-break: break-all">{{ message }}</div>
       </q-card-section>
     </q-card>
   </div>
