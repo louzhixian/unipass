@@ -42,7 +42,7 @@ export default defineComponent({
   },
   methods: {
     exit() {
-      (window.opener as Window).postMessage('UP-CLOSE', '*');
+      (window.opener as Window).postMessage({upact: 'UP-SIGN', payload: 'N/A'} as UnipassMessage, this.RP);
     },
     async sign() {
       if(this.account) {
