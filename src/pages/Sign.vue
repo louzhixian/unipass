@@ -27,7 +27,7 @@
 import { defineComponent, ref } from '@vue/composition-api'
 import { isLogin, UnipassMessage, useAccount } from 'src/compositions/account'
 import SignMessage from 'src/components/SignMessage.vue'
-import { createHash } from 'crypto';
+
 
 export default defineComponent({
   name: 'Sign',
@@ -46,7 +46,8 @@ export default defineComponent({
     },
     async sign() {
       if(this.account) {
-        const msgBuffer = createHash('SHA256').update(this.message).digest();
+        // const msgBuffer = createHash('SHA256').update(this.message).digest();
+        const msgBuffer = Buffer.from(this.message.replace('0x', ''), 'hex');
         console.log('message', msgBuffer);
         const sig = await this.account.sign(msgBuffer);
         console.log('sig', sig);
